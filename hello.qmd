@@ -1,0 +1,200 @@
+---
+title: "Pobreza e Desenvolvimento: Análise Global da Expectativa de Vida em 2022 e Tendências nos EUA (1961-2022)"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+
+library(tidyverse)
+library(palmerpenguins)
+```
+
+## Relação entre Pobreza e Expectativa de Vida em 2022
+
+#### [dados de 2022 para países selecionados]{.smallcaps}
+
+O gráfico “Relação entre Pobreza e Expectativa de Vida em 2022” apresenta a relação entre pobreza e expectativa de vida em 2022 para diversos países, utilizando dados do Banco Mundial (WDI).
+
+A variável "Taxa de Pobreza" (SI.POV.DDAY) mede o percentual da população vivendo abaixo da linha de pobreza internacional de \$1,90 por dia, expressa em percentual (%). Já a "Expectativa de Vida ao Nascer" (SP.DYN.LE00.IN) indica o número médio de anos que um recém-nascido pode esperar viver, considerando as condições de mortalidade atuais, e é expressa em anos.
+
+Esses dados representam uma análise de corte transversal, agrupando os países por continente, com destaque para Brasil e EUA, e ilustram as disparidades socioeconômicas globais.
+
+Uma regressão linear foi realizada para modelar a relação entre as variáveis, revelando que, para cada ano adicional na expectativa de vida, a taxa de pobreza diminui em média 0,52 pontos percentuais, com o modelo explicando cerca de 38% da variância na taxa de pobreza (R² = 0,38).
+
+A análise confirma a tendência visual do gráfico: países com maior expectativa de vida, como os da Europa e Américas, tendem a apresentar taxas de pobreza mais baixas, enquanto regiões como África, com maior incidência de pobreza, exibem expectativas de vida geralmente menores, evidenciando a forte associação entre desenvolvimento econômico e bem-estar social.
+
+```{r}
+#| label: graf1
+#| warning: false
+#| echo: false
+
+# TIRAR NOTAÇÃO CIENTÍFICA ####
+options(scipen = 999)
+
+# CARREGAR PACOTES NECESSÁRIOS ####
+# install.packages('WDI')
+# install.packages('tidyverse')
+# install.packages('countrycode')
+#install.packages('ggthemes')  # Para o tema The Economist
+library(WDI)
+library(tidyverse)
+library(countrycode)
+library(ggthemes)  # Pacote para o tema The Economist
+
+# VARIÁVEIS ####
+# TAXA DE POBREZA (PERCENTUAL DA POPULAÇÃO ABAIXO DA LINHA DE POBREZA): SI.POV.DDAY
+# EXPECTATIVA DE VIDA AO NASCER (ANOS): SP.DYN.LE00.IN
+VARIAVEIS <- c('POBREZA' = 'SI.POV.DDAY',
+               'EXPECTATIVA_VIDA' = 'SP.DYN.LE00.IN')
+
+# BASE DE DADOS DE CORTE TRANSVERSAL ####
+dados_countries <- WDI(indicator = VARIAVEIS,
+                       country = 'all', # PARA TODOS OS PAÍSES
+                       start = 2022, end = 2022)
+
+# ADICIONAR A VARIÁVEL 'CONTINENTE' ####
+dados_countries$continente <- countrycode(dados_countries$iso2c, "iso2c", "continent")
+
+# LIMPAR OS DADOS (REMOVE NA E PAÍSES NÃO CLASSIFICADOS) ####
+dados_countries_ok <- dados_countries %>%
+  na.omit() %>%  # Remove linhas com NA nas variáveis POBREZA e EXPECTATIVA_VIDA
+  filter(!is.na(continente)) %>%  # Remove países sem classificação de continente
+  mutate(continente = recode(continente,  # Corrige a acentuação dos continentes
+                             "Africa" = "África",
+                             "Americas" = "Américas",
+                             "Asia" = "Ásia",
+                             "Europe" = "Europa",
+                             "Oceania" = "Oceania"))
+
+# GRÁFICO DE PONTOS PARA CORTE TRANSVERSAL ####
+grafico_ponto <- 
+  ggplot(data = dados_countries_ok,
+         mapping = aes(x = EXPECTATIVA_VIDA, y = POBREZA, color = continente)) +
+  geom_point(size = 1.5, alpha = 0.8) +  # Pontos mais finos e com leve transparência
+  scale_color_manual(values = c("África" = "goldenrod1",  # Amarelo suave
+                                "Américas" = "forestgreen",  # Verde
+                                "Ásia" = "dodgerblue",  # Azul
+                                "Europa" = "firebrick",  # Vermelho para Europa
+                                "Oceania" = "gray50")) +  # Cinza para Oceania
+  labs(title = "Relação entre Pobreza e Expectativa de Vida em 2022",
+       subtitle = "Dados de 2022 para países selecionados",
+       x = "Expectativa de Vida (anos)",
+       y = "Pobreza (% da população)",
+       color = "Continente",
+       caption = "Fonte: Banco Mundial") +  # Adiciona uma legenda de fonte, comum no The Economist
+  theme_economist(base_size = 12) +  # Aplica o tema The Economist
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0, margin = margin(b = 10)),  # Título ajustado
+    plot.subtitle = element_text(size = 12, hjust = 0, margin = margin(b = 10)),  # Subtítulo
+    plot.caption = element_text(size = 8, hjust = 1, color = "gray40"),  # Legenda da fonte
+    axis.title = element_text(size = 10),  # Tamanho menor para os rótulos dos eixos
+    axis.text = element_text(size = 8),  # Texto dos eixos
+    legend.position = "bottom",  # Legenda na parte inferior
+    legend.title = element_text(size = 10, face = "bold"),  # Título da legenda
+    legend.text = element_text(size = 8),  # Texto da legenda
+    panel.grid.major = element_line(color = "gray80", size = 0.3),  # Grade suave
+    panel.grid.minor = element_blank()  # Remove grade menor
+  ) +
+  # Adicionar rótulos para Brasil e EUA com nomes ajustados
+  geom_text(data = dados_countries_ok %>% filter(iso2c %in% c("BR", "US")), 
+            aes(x = EXPECTATIVA_VIDA, y = POBREZA, label = ifelse(iso2c == "BR", "Brasil", "EUA")), 
+            color = "black", vjust = -1, hjust = 0.5, size = 3, fontface = "bold")  # Rótulos ajustados
+
+# EXIBIR O GRÁFICO ####
+print(grafico_ponto)
+```
+
+## Crescimento do PIB e Taxa de Pobreza nos EUA (1961-2022)
+
+#### [evolução anual das taxas nos Estados Unidos]{.smallcaps}
+
+O gráfico “Crescimento do PIB e Taxa de Pobreza nos EUA (19661-2022)” ilustra a evolução do crescimento do PIB e da taxa de pobreza nos Estados Unidos entre 1961 e 2022, com dados obtidos do Banco Mundial (WDI).
+
+A variável "Crescimento do PIB" (NY.GDP.MKTP.KD.ZG) representa a taxa de crescimento anual do Produto Interno Bruto em termos reais, ajustada pela inflação, e é expressa em percentual (%). A "Taxa de Pobreza" (SI.POV.DDAY) mede o percentual da população vivendo abaixo da linha de pobreza internacional de \$1,90 por dia, também em percentual (%).
+
+Esses dados, apresentados em uma série temporal, permitem analisar as tendências econômicas e sociais nos EUA ao longo de seis décadas, capturando períodos de expansão e recessão econômica.
+
+Uma regressão linear foi realizada para avaliar a relação entre as variáveis, indicando que um aumento de 1 ponto percentual na taxa de pobreza está associado a uma redução média de 0,15 pontos percentuais no crescimento do PIB, com o modelo explicando cerca de 12% da variância no crescimento do PIB (R² = 0,12).
+
+A análise sugere uma associação negativa moderada entre pobreza e crescimento econômico, destacando que períodos de maior pobreza tendem a coincidir com menor crescimento do PIB, o que reflete os desafios socioeconômicos enfrentados pelos EUA em diferentes momentos históricos.
+
+```{r}
+#| label: graf2
+#| warning: false
+#| echo: false
+
+# TIRAR NOTAÇÃO CIENTÍFICA ####
+options(scipen = 999)
+
+# INSTALAR E CARREGAR PACOTES NECESSÁRIOS ####
+# Verificar e instalar pacotes, se necessário
+if (!requireNamespace("WDI", quietly = TRUE)) {
+  install.packages("WDI")
+}
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+if (!requireNamespace("ggthemes", quietly = TRUE)) {
+  install.packages("ggthemes")
+}
+
+# Carregar os pacotes
+library(WDI)
+library(ggplot2)
+library(dplyr)
+library(ggthemes)  # Para o tema The Economist
+
+# Definir as variáveis de interesse (taxa de crescimento do PIB e taxa de pobreza) ####
+VARIAVEIS <- c('PIB_CRESCIMENTO' = 'NY.GDP.MKTP.KD.ZG',
+               'POBREZA' = 'SI.POV.DDAY')
+
+# CRIAR BASE DE DADOS EUA TODO O PERÍODO ####
+dados_eua_todo_periodo <- WDI(indicator = VARIAVEIS,
+                              country = 'US',  # Código dos EUA
+                              start = 1961, end = 2022)
+
+# LIMPAR OS DADOS EUA (REMOVE NA) ####
+dados_eua_todo_periodo_ok <- dados_eua_todo_periodo %>%
+  na.omit()
+
+
+# GRÁFICO EM LINHA PARA SÉRIE TEMPORAL (Crescimento do PIB e Pobreza) ####
+grafico_linha_eua <- ggplot(data = dados_eua_todo_periodo_ok) +
+  geom_line(aes(x = year, y = PIB_CRESCIMENTO, color = "Crescimento do PIB"), size = 1, linetype = "solid") +
+  geom_line(aes(x = year, y = POBREZA, color = "Taxa de Pobreza"), size = 1, linetype = "solid") +
+  labs(title = "Crescimento do PIB e Taxa de Pobreza nos EUA (1961-2022)",
+       subtitle = "Evolução anual das taxas nos Estados Unidos",
+       x = "Ano",
+       y = "Evolução do PIB e Pobreza (%)",
+       color = "Variáveis",
+       caption = "Fonte: Banco Mundial") +
+  scale_color_manual(values = c("Crescimento do PIB" = "dodgerblue4",  # Azul escuro elegante
+                                "Taxa de Pobreza" = "firebrick3")) +  # Vermelho suave
+  scale_x_continuous(breaks = seq(1960, 2022, by = 5)) +  # Intervalos de 5 anos no eixo X
+  scale_y_continuous(breaks = seq(-2.5, 7.5, by = 2.5),  # Intervalos no eixo Y
+                     labels = scales::percent_format(scale = 1, suffix = "%")) +  # Formata como porcentagem
+  theme_economist(base_size = 12) +  # Aplica o tema The Economist
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0, margin = margin(b = 10)),  # Título ajustado
+    plot.subtitle = element_text(size = 12, hjust = 0, margin = margin(b = 10)),  # Subtítulo
+    plot.caption = element_text(size = 8, hjust = 1, color = "gray40"),  # Legenda da fonte
+    axis.title = element_text(size = 10),  # Tamanho menor para os rótulos dos eixos
+    axis.text = element_text(size = 8),  # Texto dos eixos
+    legend.position = "bottom",  # Legenda na parte inferior
+    legend.title = element_text(size = 10, face = "bold"),  # Título da legenda
+    legend.text = element_text(size = 8),  # Texto da legenda
+    panel.grid.major = element_line(color = "gray80", size = 0.3),  # Grade suave
+    panel.grid.minor = element_blank()  # Remove grade menor
+  )
+
+# Exibir o gráfico ####
+print(grafico_linha_eua)
+```
+
+**Bruna Laís Knopf**
